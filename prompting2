@@ -1,0 +1,16 @@
+saya membuat proyek dashboard maintenance pada mobile qeuipment tambang dengan code:
+
+Pada code tersebut saya baru membuat tampilan pada halaman tab RUL & Health Score, saya ingin menambahkan isi pada halaman tab CBM dengan detail sebagai berikut:
+
+Pertama, buatkan data dari sensor IOT pada kendaraan berat tambang bebas apa aja dengan timestamp per jam dalam 1 bulan, data tersebut berisikan kondisi normal dan ada kegagalannya dan saling memiliki relasi antar datanya, tolong realistis dan berpegang hukum fisikan.
+
+pada tab CBM tolong buatkan untuk menampilkan data dari sensor-sensor yang terhubung pada kendaraan truck CAT777D dengan sistem IoT dan buatkan visualisasi nya seperti plot anomaly detection oleh model isolation forest, grafik dengan ada nya threshold jadi kalo pattern menembus threshold maka dikatakaan bahaya atau anomali, failure saat grafik menunjukan residual yang meningkat atau gap antara nilai data yang terprediksi/ekspetasi dengan data aktual nya, lalu ada visualisasi plot klasifikasi KNN untuk failure prediction
+
+Sebagai referensi untuk limit event CAT777D:
+
+lalu ada data AHEAD alarm dan instruksi untuk CAT777D:
+
+Hasil visualisasinya tolong level profesional, serta pada tampilan tab CBM tolong sesuaikan dengan desain awal pada code tersebut bukan hanya dari segi warna melaikan posisi penempatan, dll, anda juga boleh tambahkan tabel atau apapun itu agar lebih profesional, bebas modifikasi dan penambahan syaa ingin yang luar biasa
+
+tolong code nya berikan langsung lewat balasan bukan lewat text (Drafting Artifact...) yang halaman berbeda karena suka error
+
