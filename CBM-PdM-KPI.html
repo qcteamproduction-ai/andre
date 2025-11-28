@@ -1,0 +1,2346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Predictive Maintenance Dashboard</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js + Annotation Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2"></script>
+
+  <style>
+    body {
+      background-color: #111827;
+      color: white;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .tab-active {
+      background-color: #1f2937;
+      border-bottom: 3px solid #3b82f6;
+    }
+
+    .bg-component-engine { background-color: #1e3a8a; }
+    .bg-component-differential { background-color: #9a3412; }
+    .bg-critical { background-color: #7f1d1d; }
+    .bg-warning { background-color: #92400e; }
+    .bg-normal { background-color: #1f2937; }
+
+    table { border-collapse: collapse; }
+    th, td { border: 1px solid #374151; }
+
+    .sensor-card {
+      transition: all 0.3s ease;
+    }
+    .sensor-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .anomaly-point {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Tambahan CSS untuk tab PdM */
+    .metric-card {
+      background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+      border-left: 4px solid #3b82f6;
+    }
+    .chart-container {
+      background-color: #1f2937;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .alert-badge {
+      animation: pulse 2s infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="bg-gray-800 px-6 py-4 flex justify-between items-center border-b-4 border-gray-700">
+    <h1 class="text-3xl font-bold">Unit Condition | Summary</h1>
+    <div class="text-xl">12 February 2018</div>
+  </div>
+
+  <!-- TOP INFO PANEL -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 p-6 bg-gray-800">
+    <!-- Unit Information -->
+    <div class="lg:col-span-2 bg-gray-700 p-4 rounded">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div>
+          <div class="mb-2"><span class="text-gray-400">Unit Status:</span> <span class="bg-green-600 px-2 py-1 rounded text-white font-bold text-xs">Running</span></div>
+          <div class="mb-2"><span class="text-gray-400">SMR (h):</span> <span class="font-bold">11875</span></div>
+          <div class="mb-2"><span class="text-gray-400">Updated:</span> 29/01/2018</div>
+        </div>
+        <div>
+          <div class="mb-2"><span class="text-gray-400">Site:</span> FM-JBYPM</div>
+          <div class="mb-2"><span class="text-gray-400">Unit Code:</span> DT4625</div>
+          <div class="mb-2"><span class="text-gray-400">Unit Model:</span> HD785-7</div>
+          <div class="mb-2"><span class="text-gray-400">Serial Number:</span> 31378</div>
+        </div>
+        <div>
+          <div class="mb-2"><span class="text-gray-400">Delivery Date:</span> 12/06/2017</div>
+          <div class="mb-2"><span class="text-gray-400">Warr Status:</span> WARRANTY</div>
+          <div class="mb-2"><span class="text-gray-400">Customer:</span> PAMA PERSADA N.</div>
+          <div class="mb-2"><span class="text-gray-400">Serial Number:</span> 31378</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="space-y-4">
+      <div class="bg-gray-700 p-4 rounded text-center">
+        <div class="text-sm text-gray-400 mb-2">Physical Availability (PA)</div>
+        <div class="text-3xl font-bold text-blue-400">90%</div>
+        <div class="text-gray-400 mt-2 text-xs">Target: <span class="font-bold">90%</span></div>
+      </div>
+      <div class="bg-gray-700 p-4 rounded text-center">
+        <div class="text-sm text-gray-400 mb-2">Mean Time Between Failure (MTBF)</div>
+        <div class="text-3xl font-bold text-blue-400">170h</div>
+        <div class="text-gray-400 mt-2 text-xs">Target: <span class="font-bold">150 hours</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="bg-gray-700 px-6 flex space-x-1 overflow-x-auto">
+    <button onclick="showTab('rul')" id="tab-rul" class="tab-active px-4 py-3 font-medium text-sm whitespace-nowrap">RUL & Health Score</button>
+    <button onclick="showTab('cbm')" id="tab-cbm" class="px-4 py-3 font-medium text-gray-300 hover:bg-gray-600 text-sm whitespace-nowrap">CBM</button>
+    <button onclick="showTab('pdm')" id="tab-pdm" class="px-4 py-3 font-medium text-gray-300 hover:bg-gray-600 text-sm whitespace-nowrap">PdM</button>
+    <button onclick="showTab('kpi')" id="tab-kpi" class="px-4 py-3 font-medium text-gray-300 hover:bg-gray-600 text-sm whitespace-nowrap">KPI</button>
+    <button class="px-4 py-3 font-medium text-gray-300 hover:bg-gray-600 text-sm whitespace-nowrap">Alert System</button>
+    <button class="px-4 py-3 font-medium text-gray-300 hover:bg-gray-600 text-sm whitespace-nowrap">Main. Activity</button>
+    <button class="px-4 py-3 font-medium text-gray-300 hover:bg-gray-600 text-sm whitespace-nowrap">VHMS</button>
+    <button class="px-4 py-3 font-medium text-gray-300 hover:bg-gray-600 text-sm whitespace-nowrap">Oil Analysis</button>
+  </div>
+
+  <!-- TAB CONTENT: RUL & Health Score -->
+  <div id="content-rul">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+      <!-- Left Column -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- RUL & Health Score Table -->
+        <div class="bg-gray-800 rounded-lg overflow-hidden">
+          <div class="bg-gray-700 px-4 py-3 font-bold">RUL & Health Score</div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead class="bg-gray-700">
+                <tr>
+                  <th class="px-2 py-2 text-left" rowspan="2">Component</th>
+                  <th class="px-2 py-2 text-center" colspan="3">Remaining Useful Life</th>
+                  <th class="px-2 py-2 text-center" colspan="2">Health Score</th>
+                  <th class="px-2 py-2 text-center" rowspan="2">Lifetime</th>
+                  <th class="px-2 py-2 text-center" rowspan="2">Target Lifetime</th>
+                  <th class="px-2 py-2 text-center" rowspan="2">Target Lifetime Prolong</th>
+                  <th class="px-2 py-2 text-center" rowspan="2">Comp Status</th>
+                </tr>
+                <tr class="bg-gray-600">
+                  <th class="px-2 py-1 text-center text-gray-300">Last Upd.</th>
+                  <th class="px-2 py-1 text-center text-gray-300">Value</th>
+                  <th class="px-2 py-1 text-center text-gray-300">MAPE</th>
+                  <th class="px-2 py-1 text-center text-gray-300">Last Upd.</th>
+                  <th class="px-2 py-1 text-center text-gray-300">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="bg-component-engine">
+                  <td class="px-2 py-3"><input type="checkbox" checked class="mr-2"> Engine</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">10500</td>
+                  <td class="px-2 py-3 text-center">10%</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">30%</td>
+                  <td class="px-2 py-3 text-center">1057</td>
+                  <td class="px-2 py-3 text-center">18000</td>
+                  <td class="px-2 py-3 text-center">15000</td>
+                  <td class="px-2 py-3 text-center">Reman</td>
+                </tr>
+                <tr class="bg-gray-700">
+                  <td class="px-2 py-3"><input type="checkbox" class="mr-2"> Final Drive RH</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">18000</td>
+                  <td class="px-2 py-3 text-center">10%</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">65%</td>
+                  <td class="px-2 py-3 text-center">11785</td>
+                  <td class="px-2 py-3 text-center">30000</td>
+                  <td class="px-2 py-3 text-center">30000</td>
+                  <td class="px-2 py-3 text-center">New</td>
+                </tr>
+                <tr class="bg-gray-700">
+                  <td class="px-2 py-3"><input type="checkbox" class="mr-2"> Final Drive LH</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">17600</td>
+                  <td class="px-2 py-3 text-center">10%</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">74%</td>
+                  <td class="px-2 py-3 text-center">11785</td>
+                  <td class="px-2 py-3 text-center">30000</td>
+                  <td class="px-2 py-3 text-center">15000</td>
+                  <td class="px-2 py-3 text-center">New</td>
+                </tr>
+                <tr class="bg-gray-700">
+                  <td class="px-2 py-3"><input type="checkbox" class="mr-2"> Differential Front</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">17600</td>
+                  <td class="px-2 py-3 text-center">10%</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">85%</td>
+                  <td class="px-2 py-3 text-center">11785</td>
+                  <td class="px-2 py-3 text-center">30000</td>
+                  <td class="px-2 py-3 text-center">30000</td>
+                  <td class="px-2 py-3 text-center">New</td>
+                </tr>
+                <tr class="bg-component-differential">
+                  <td class="px-2 py-3"><input type="checkbox" checked class="mr-2"> Differential Rear</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">11400</td>
+                  <td class="px-2 py-3 text-center">10%</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">45%</td>
+                  <td class="px-2 py-3 text-center">11785</td>
+                  <td class="px-2 py-3 text-center">30000</td>
+                  <td class="px-2 py-3 text-center">30000</td>
+                  <td class="px-2 py-3 text-center">New</td>
+                </tr>
+                <tr class="bg-gray-700">
+                  <td class="px-2 py-3"><input type="checkbox" class="mr-2"> Cylinder</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">6000</td>
+                  <td class="px-2 py-3 text-center">10%</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center font-bold">65%</td>
+                  <td class="px-2 py-3 text-center">2089</td>
+                  <td class="px-2 py-3 text-center">9000</td>
+                  <td class="px-2 py-3 text-center">30000</td>
+                  <td class="px-2 py-3 text-center">Reman</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Fault Analysis -->
+        <div class="bg-gray-800 rounded-lg p-4">
+          <div class="bg-gray-700 px-4 py-3 font-bold mb-4 -mx-4 -mt-4">Fault Analysis (Top 10)</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 class="text-center font-bold mb-3 text-sm">Fault by Qty</h3>
+              <div style="height: 200px;"><canvas id="faultQtyChart"></canvas></div>
+            </div>
+            <div>
+              <h3 class="text-center font-bold mb-3 text-sm">Fault by Downtime</h3>
+              <div style="height: 200px;"><canvas id="faultDowntimeChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div class="space-y-6">
+        <!-- Health Score Trend -->
+        <div class="bg-gray-800 rounded-lg p-4">
+          <div class="bg-gray-700 px-4 py-3 font-bold mb-4 -mx-4 -mt-4">Health Score Trend</div>
+          <div style="height: 200px;"><canvas id="healthTrendChart"></canvas></div>
+        </div>
+
+        <!-- Technical Parameter Table -->
+        <div class="bg-gray-800 rounded-lg overflow-hidden">
+          <div class="bg-gray-700 px-4 py-3 font-bold">Technical Parameter</div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead class="bg-gray-700">
+                <tr>
+                  <th class="px-2 py-2 text-left">Component</th>
+                  <th class="px-2 py-2 text-center">SMR (h)</th>
+                  <th class="px-2 py-2 text-center">Date</th>
+                  <th class="px-2 py-2 text-center">Source</th>
+                  <th class="px-2 py-2 text-left">Tech. Parameter</th>
+                  <th class="px-2 py-2 text-center">Value</th>
+                  <th class="px-2 py-2 text-center">Limit</th>
+                  <th class="px-2 py-2 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="bg-critical">
+                  <td class="px-2 py-3">Engine</td>
+                  <td class="px-2 py-3 text-center">24587</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center">VHMS</td>
+                  <td class="px-2 py-3">Cool_Temp_Max</td>
+                  <td class="px-2 py-3 text-center font-bold">103</td>
+                  <td class="px-2 py-3 text-center">100</td>
+                  <td class="px-2 py-3 text-center"><span class="bg-red-600 px-2 py-1 rounded text-xs">Critical</span></td>
+                </tr>
+                <tr class="bg-gray-700">
+                  <td class="px-2 py-3">Engine</td>
+                  <td class="px-2 py-3 text-center">24587</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center">VHMS</td>
+                  <td class="px-2 py-3">LBF_Exh.Temp_Max</td>
+                  <td class="px-2 py-3 text-center font-bold">785</td>
+                  <td class="px-2 py-3 text-center">750</td>
+                  <td class="px-2 py-3 text-center"><span class="bg-yellow-600 px-2 py-1 rounded text-xs">Attention</span></td>
+                </tr>
+                <tr class="bg-critical">
+                  <td class="px-2 py-3">Differential Rear</td>
+                  <td class="px-2 py-3 text-center">24587</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center">VHMS</td>
+                  <td class="px-2 py-3">PAP_IRON</td>
+                  <td class="px-2 py-3 text-center font-bold">103</td>
+                  <td class="px-2 py-3 text-center">100</td>
+                  <td class="px-2 py-3 text-center"><span class="bg-red-600 px-2 py-1 rounded text-xs">Critical</span></td>
+                </tr>
+                <tr class="bg-gray-700">
+                  <td class="px-2 py-3">Differential Rear</td>
+                  <td class="px-2 py-3 text-center">24587</td>
+                  <td class="px-2 py-3 text-center">12/02/18</td>
+                  <td class="px-2 py-3 text-center">VHMS</td>
+                  <td class="px-2 py-3">PAP_ALUMINIUM</td>
+                  <td class="px-2 py-3 text-center font-bold">785</td>
+                  <td class="px-2 py-3 text-center">750</td>
+                  <td class="px-2 py-3 text-center"><span class="bg-yellow-600 px-2 py-1 rounded text-xs">Attention</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB CONTENT: CBM -->
+  <div id="content-cbm" style="display: none;">
+    <div class="p-6 space-y-6">
+      <!-- Status Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-red-900 to-red-700 p-4 rounded-lg sensor-card">
+          <div class="flex justify-between items-start mb-2">
+            <div class="text-xs text-red-200">CRITICAL ALERTS</div>
+            <div class="bg-red-600 rounded-full w-8 h-8 flex items-center justify-center text-xl">⚠️</div>
+          </div>
+          <div class="text-3xl font-bold mb-1">3</div>
+          <div class="text-xs text-red-200">Requires immediate action</div>
+        </div>
+        <div class="bg-gradient-to-br from-yellow-900 to-yellow-700 p-4 rounded-lg sensor-card">
+          <div class="flex justify-between items-start mb-2">
+            <div class="text-xs text-yellow-200">WARNING</div>
+            <div class="bg-yellow-600 rounded-full w-8 h-8 flex items-center justify-center text-xl">⚡</div>
+          </div>
+          <div class="text-3xl font-bold mb-1">7</div>
+          <div class="text-xs text-yellow-200">Monitor closely</div>
+        </div>
+        <div class="bg-gradient-to-br from-blue-900 to-blue-700 p-4 rounded-lg sensor-card">
+          <div class="flex justify-between items-start mb-2">
+            <div class="text-xs text-blue-200">ACTIVE SENSORS</div>
+            <div class="bg-blue-600 rounded-full w-8 h-8 flex items-center justify-center text-xl">📶</div>
+          </div>
+          <div class="text-3xl font-bold mb-1">24</div>
+          <div class="text-xs text-blue-200">All systems operational</div>
+        </div>
+        <div class="bg-gradient-to-br from-green-900 to-green-700 p-4 rounded-lg sensor-card">
+          <div class="flex justify-between items-start mb-2">
+            <div class="text-xs text-green-200">ANOMALIES DETECTED</div>
+            <div class="bg-green-600 rounded-full w-8 h-8 flex items-center justify-center text-xl">🔍</div>
+          </div>
+          <div class="text-3xl font-bold mb-1">5</div>
+          <div class="text-xs text-green-200">Last 24 hours</div>
+        </div>
+      </div>
+
+      <!-- Main Content Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Isolation Forest -->
+          <div class="bg-gray-800 rounded-lg p-5">
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <h3 class="text-lg font-bold text-blue-400">Isolation Forest - Anomaly Detection</h3>
+                <p class="text-xs text-gray-400 mt-1">Real-time anomaly scoring across all sensors</p>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-gray-400">Anomaly Score Threshold</div>
+                <div class="text-xl font-bold text-red-400">-0.15</div>
+              </div>
+            </div>
+            <div style="height: 280px;">
+              <canvas id="isolationForestChart"></canvas>
+            </div>
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div class="bg-gray-700 p-2 rounded">
+                <div class="text-gray-400">Normal Points</div>
+                <div class="text-lg font-bold text-green-400">682</div>
+              </div>
+              <div class="bg-gray-700 p-2 rounded">
+                <div class="text-gray-400">Anomalies</div>
+                <div class="text-lg font-bold text-red-400">38</div>
+              </div>
+              <div class="bg-gray-700 p-2 rounded">
+                <div class="text-gray-400">Detection Rate</div>
+                <div class="text-lg font-bold text-blue-400">94.7%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Engine Temperature -->
+          <div class="bg-gray-800 rounded-lg p-5">
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <h3 class="text-lg font-bold text-orange-400">Engine Coolant Temperature</h3>
+                <p class="text-xs text-gray-400 mt-1">Threshold monitoring with limit boundaries</p>
+              </div>
+              <div class="flex gap-4">
+                <div class="text-right">
+                  <div class="text-xs text-gray-400">Current</div>
+                  <div class="text-xl font-bold text-orange-400">107°C</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-xs text-gray-400">Limit</div>
+                  <div class="text-xl font-bold text-red-400">103°C</div>
+                </div>
+              </div>
+            </div>
+            <div style="height: 250px;">
+              <canvas id="tempThresholdChart"></canvas>
+            </div>
+            <div class="mt-3 flex flex-col md:flex-row justify-between text-xs gap-2">
+              <div class="bg-red-900 px-3 py-1 rounded">
+                <span class="text-red-300">Warning CRITICAL: </span>
+                <span class="text-white font-bold">Temperature exceeded limit for 2.3 hrs</span>
+              </div>
+              <div class="text-gray-400">
+                Recommended: <span class="text-white font-bold">REDUCE ENGINE LOAD</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Residual Analysis -->
+          <div class="bg-gray-800 rounded-lg p-5">
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <h3 class="text-lg font-bold text-purple-400">Residual Analysis - Engine Oil Pressure</h3>
+                <p class="text-xs text-gray-400 mt-1">Predicted vs Actual with residual gap detection</p>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-gray-400">Max Residual</div>
+                <div class="text-xl font-bold text-purple-400">23.4 psi</div>
+              </div>
+            </div>
+            <div style="height: 280px;">
+              <canvas id="residualChart"></canvas>
+            </div>
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="bg-yellow-900 p-2 rounded">
+                <div class="text-xs text-yellow-300">Warning Warning</div>
+                <div class="text-xs text-white mt-1">Increasing residual pattern detected. Potential seal degradation.</div>
+              </div>
+              <div class="bg-gray-700 p-2 rounded">
+                <div class="text-xs text-gray-400">Recommended Action</div>
+                <div class="text-xs text-white mt-1">Schedule oil pressure system inspection within 48 hours.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- KNN Classification -->
+          <div class="bg-gray-800 rounded-lg p-5">
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <h3 class="text-lg font-bold text-cyan-400">KNN Classification - Failure Prediction</h3>
+                <p class="text-xs text-gray-400 mt-1">Multi-sensor feature space classification (K=5)</p>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-gray-400">Model Accuracy</div>
+                <div class="text-xl font-bold text-cyan-400">96.2%</div>
+              </div>
+            </div>
+            <div style="height: 300px;">
+              <canvas id="knnChart"></canvas>
+            </div>
+            <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              <div class="bg-green-900 p-2 rounded text-center">
+                <div class="text-green-300">Normal</div>
+                <div class="text-xl font-bold text-white">612</div>
+              </div>
+              <div class="bg-yellow-900 p-2 rounded text-center">
+                <div class="text-yellow-300">Warning</div>
+                <div class="text-xl font-bold text-white">78</div>
+              </div>
+              <div class="bg-red-900 p-2 rounded text-center">
+                <div class="text-red-300">Critical</div>
+                <div class="text-xl font-bold text-white">23</div>
+              </div>
+              <div class="bg-purple-900 p-2 rounded text-center">
+                <div class="text-purple-300">Failure</div>
+                <div class="text-xl font-bold text-white">7</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="space-y-6">
+          <!-- Real-time Sensor Status -->
+          <div class="bg-gray-800 rounded-lg p-4">
+            <h3 class="text-lg font-bold mb-4 text-blue-400">Real-time Sensor Status</h3>
+            <div class="space-y-3 text-xs">
+              <!-- Critical -->
+              <div class="bg-red-900 border-l-4 border-red-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="font-bold text-red-300">Engine Speed</span>
+                  <span class="bg-red-600 px-2 py-1 rounded text-white">CRITICAL</span>
+                </div>
+                <div class="text-white"><span class="text-2xl font-bold">2200</span> rpm</div>
+                <div class="text-red-300 mt-1">Limit: 1900 rpm | Overspeed detected</div>
+              </div>
+              <div class="bg-red-900 border-l-4 border-red-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="font-bold text-red-300">Engine Coolant Temp</span>
+                  <span class="bg-red-600 px-2 py-1 rounded text-white">CRITICAL</span>
+                </div>
+                <div class="text-white"><span class="text-2xl font-bold">107</span> °C</div>
+                <div class="text-red-300 mt-1">Limit: 103 °C | REDUCE ENGINE LOAD</div>
+              </div>
+              <div class="bg-red-900 border-l-4 border-red-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="font-bold text-red-300">Engine Oil Pressure</span>
+                  <span class="bg-red-600 px-2 py-1 rounded text-white">CRITICAL</span>
+                </div>
+                <div class="text-white"><span class="text-2xl font-bold">23</span> psi</div>
+                <div class="text-red-300 mt-1">Limit: 0 psi | SHUTDN IMMEDIATELY</div>
+              </div>
+
+              <!-- Warning -->
+              <div class="bg-yellow-900 border-l-4 border-yellow-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="font-bold text-yellow-300">Left Exhaust Temp</span>
+                  <span class="bg-yellow-600 px-2 py-1 rounded text-white">WARNING</span>
+                </div>
+                <div class="text-white"><span class="text-2xl font-bold">760</span> °C</div>
+                <div class="text-yellow-300 mt-1">Limit: 735 °C | CALL SHOP</div>
+              </div>
+              <div class="bg-yellow-900 border-l-4 border-yellow-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="font-bold text-yellow-300">Right Exhaust Temp</span>
+                  <span class="bg-yellow-600 px-2 py-1 rounded text-white">WARNING</span>
+                </div>
+                <div class="text-white"><span class="text-2xl font-bold">735</span> °C</div>
+                <div class="text-yellow-300 mt-1">Limit: 710 °C | REDUCE ENGINE LOAD</div>
+              </div>
+
+              <!-- Normal -->
+              <div class="bg-gray-700 border-l-4 border-green-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="font-bold text-gray-300">Transmission Temp</span>
+                  <span class="bg-green-600 px-2 py-1 rounded text-white">NORMAL</span>
+                </div>
+                <div class="text-white"><span class="text-2xl font-bold">98</span> °C</div>
+                <div class="text-gray-400 mt-1">Within normal range</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Alarms -->
+          <div class="bg-gray-800 rounded-lg overflow-hidden">
+            <div class="bg-gray-700 px-4 py-3 font-bold">Active AHEAD Alarms</div>
+            <div class="overflow-x-auto max-h-96 overflow-y-auto">
+              <table class="w-full text-xs">
+                <thead class="bg-gray-700 sticky top-0">
+                  <tr>
+                    <th class="px-2 py-2 text-left">Parameter</th>
+                    <th class="px-2 py-2 text-center">Level</th>
+                    <th class="px-2 py-2 text-left">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="bg-critical"><td class="px-2 py-3 font-bold">Engine Overspeed</td><td class="px-2 py-3 text-center"><span class="bg-red-600 px-2 py-1 rounded">2</span></td><td class="px-2 py-3">REDUCE SPEED</td></tr>
+                  <tr class="bg-critical"><td class="px-2 py-3 font-bold">Engine Coolant Temp</td><td class="px-2 py-3 text-center"><span class="bg-red-600 px-2 py-1 rounded">3</span></td><td class="px-2 py-3">SHUTDN IMMEDIATELY</td></tr>
+                  <tr class="bg-critical"><td class="px-2 py-3 font-bold">Engine Oil Pressure</td><td class="px-2 py-3 text-center"><span class="bg-red-600 px-2 py-1 rounded">3</span></td><td class="px-2 py-3">SHUTDN IMMEDIATELY</td></tr>
+                  <tr class="bg-warning"><td class="px-2 py-3">Left Exhaust Temp</td><td class="px-2 py-3 text-center"><span class="bg-yellow-600 px-2 py-1 rounded">2</span></td><td class="px-2 py-3">CALL SHOP</td></tr>
+                  <tr class="bg-warning"><td class="px-2 py-3">Right Exhaust Temp</td><td class="px-2 py-3 text-center"><span class="bg-yellow-600 px-2 py-1 rounded">1</span></td><td class="px-2 py-3">REDUCE ENGINE LOAD</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB CONTENT: PdM -->
+  <div id="content-pdm" style="display: none;">
+    <div class="p-6 space-y-6">
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="metric-card p-4 rounded-lg">
+          <div class="text-gray-400 text-sm mb-1">Predicted Failures (30d)</div>
+          <div class="text-3xl font-bold text-red-400">3</div>
+          <div class="text-xs text-gray-500 mt-1">Engine, Diff Rear, Cylinder</div>
+        </div>
+        <div class="metric-card p-4 rounded-lg">
+          <div class="text-gray-400 text-sm mb-1">Avg Time to Failure</div>
+          <div class="text-3xl font-bold text-yellow-400">18d</div>
+          <div class="text-xs text-gray-500 mt-1">Critical: Engine (12d)</div>
+        </div>
+        <div class="metric-card p-4 rounded-lg">
+          <div class="text-gray-400 text-sm mb-1">Anomalies Detected</div>
+          <div class="text-3xl font-bold text-orange-400">7</div>
+          <div class="text-xs text-gray-500 mt-1">Last 24h: 2 critical</div>
+        </div>
+        <div class="metric-card p-4 rounded-lg">
+          <div class="text-gray-400 text-sm mb-1">Predicted OEE (7d)</div>
+          <div class="text-3xl font-bold text-blue-400">76%</div>
+          <div class="text-xs text-gray-500 mt-1">↓ 14% from baseline</div>
+        </div>
+      </div>
+
+      <!-- Main Grid Layout PdM -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Sensor Forecasting -->
+          <div class="bg-gray-800 rounded-lg p-4">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
+              <h3 class="text-lg font-bold">Sensor Forecasting & Threshold Analysis</h3>
+              <select id="sensorSelect" class="bg-gray-700 text-white px-3 py-1 rounded text-sm">
+                <option value="coolantTemp">Engine Coolant Temperature</option>
+                <option value="oilPressure">Engine Oil Pressure</option>
+                <option value="exhaustTemp">Exhaust Temperature</option>
+                <option value="boostPressure">Boost Pressure</option>
+              </select>
+            </div>
+            <div style="height: 300px;"><canvas id="sensorForecastChart"></canvas></div>
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div class="bg-gray-700 p-2 rounded"><div class="text-gray-400">Threshold Breach</div><div class="text-red-400 font-bold" id="breachTime">Est. 12 Feb 18:00</div></div>
+              <div class="bg-gray-700 p-2 rounded"><div class="text-gray-400">Current Trend</div><div class="text-orange-400 font-bold">↑ 2.3°C/day</div></div>
+              <div class="bg-gray-700 p-2 rounded"><div class="text-gray-400">Confidence</div><div class="text-green-400 font-bold">89.5%</div></div>
+            </div>
+          </div>
+
+          <!-- KNN Classification -->
+          <div class="bg-gray-800 rounded-lg p-4">
+            <h3 class="text-lg font-bold mb-4">Failure Prediction Classification (KNN on Forecast Data)</h3>
+            <div style="height: 350px;"><canvas id="knnClassificationChart"></canvas></div>
+            <div class="mt-3 bg-gray-700 p-3 rounded">
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                <div><div class="text-gray-400">Normal Points</div><div class="text-green-400 font-bold">482 (67%)</div></div>
+                <div><div class="text-gray-400">Warning Zone</div><div class="text-yellow-400 font-bold">156 (22%)</div></div>
+                <div><div class="text-gray-400">Critical Zone</div><div class="text-red-400 font-bold">82 (11%)</div></div>
+                <div><div class="text-gray-400">KNN Accuracy</div><div class="text-blue-400 font-bold">94.2%</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Anomaly Detection -->
+          <div class="bg-gray-800 rounded-lg p-4">
+            <h3 class="text-lg font-bold mb-4">Anomaly Detection (Isolation Forest on Forecast)</h3>
+            <div style="height: 300px;"><canvas id="anomalyDetectionChart"></canvas></div>
+            <div class="mt-3 overflow-x-auto">
+              <table class="w-full text-xs">
+                <thead class="bg-gray-700"><tr><th class="px-3 py-2 text-left">Timestamp</th><th class="px-3 py-2 text-left">Component</th><th class="px-3 py-2 text-left">Anomaly Score</th><th class="px-3 py-2 text-left">Deviation</th><th class="px-3 py-2 text-left">Severity</th></tr></thead>
+                <tbody id="anomalyTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="space-y-6">
+          <!-- OEE Degradation -->
+          <div class="bg-gray-800 rounded-lg p-4">
+            <h3 class="text-lg font-bold mb-4">OEE Degradation Forecast</h3>
+            <div style="height: 280px;"><canvas id="oeeDegradationChart"></canvas></div>
+            <div class="mt-3 space-y-2">
+              <div class="bg-gray-700 p-2 rounded text-xs"><div class="flex justify-between mb-1"><span class="text-gray-400">Availability</span><span class="text-yellow-400 font-bold">82% → 68%</span></div><div class="w-full bg-gray-600 rounded-full h-2"><div class="bg-yellow-500 h-2 rounded-full" style="width:68%"></div></div></div>
+              <div class="bg-gray-700 p-2 rounded text-xs"><div class="flex justify-between mb-1"><span class="text-gray-400">Performance</span><span class="text-orange-400 font-bold">88% → 78%</span></div><div class="w-full bg-gray-600 rounded-full h-2"><div class="bg-orange-500 h-2 rounded-full" style="width:78%"></div></div></div>
+              <div class="bg-gray-700 p-2 rounded text-xs"><div class="flex justify-between mb-1"><span class="text-gray-400">Quality</span><span class="text-blue-400 font-bold">94% → 92%</span></div><div class="w-full bg-gray-600 rounded-full h-2"><div class="bg-blue-500 h-2 rounded-full" style="width:92%"></div></div></div>
+            </div>
+            <div class="mt-3 bg-red-900 border border-red-600 p-2 rounded text-xs">
+              <div class="font-bold text-red-300">Critical Prediction</div>
+              <div class="text-red-200 mt-1">OEE drops below 70% in 8 days due to engine degradation</div>
+            </div>
+          </div>
+
+          <!-- Run-to-Failure RUL -->
+          <div class="bg-gray-800 rounded-lg p-4">
+            <h3 class="text-lg font-bold mb-4">Run-to-Failure RUL (Health Index Degradation)</h3>
+            <div style="height: 320px;"><canvas id="runToFailureChart"></canvas></div>
+            <div class="mt-3 space-y-1 text-xs">
+              <div class="flex items-center justify-between bg-gray-700 p-2 rounded"><div class="flex items-center"><div class="w-3 h-3 bg-red-500 rounded-full mr-2"></div><span>Engine Overheat</span></div><span class="font-bold text-red-400">12 days</span></div>
+              <div class="flex items-center justify-between bg-gray-700 p-2 rounded"><div class="flex items-center"><div class="w-3 h-3 bg-orange-500 rounded-full mr-2"></div><span>Diff Rear Wear</span></div><span class="font-bold text-orange-400">18 days</span></div>
+              <div class="flex items-center justify-between bg-gray-700 p-2 rounded"><div class="flex items-center"><div class="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div><span>Oil Pressure Drop</span></div><span class="font-bold text-yellow-400">25 days</span></div>
+              <div class="flex items-center justify-between bg-gray-700 p-2 rounded"><div class="flex items-center"><div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div><span>Cylinder Wear</span></div><span class="font-bold text-green-400">45 days</span></div>
+            </div>
+            <div class="mt-3 bg-gray-700 p-2 rounded text-xs">
+              <div class="text-gray-400">Current Health Index</div>
+              <div class="text-red-400 font-bold text-lg">32.5%</div>
+              <div class="text-gray-500">Trending towards Engine Overheat failure mode</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Maintenance Recommendations -->
+      <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-lg font-bold mb-4">Predictive Maintenance Recommendations</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-red-900 border-l-4 border-red-500 p-3 rounded">
+            <div class="flex items-start"><div class="alert-badge text-2xl mr-3">🔴</div>
+              <div><div class="font-bold text-red-300">CRITICAL - Engine Coolant System</div><div class="text-sm text-red-200 mt-1">Action required within 12 days</div><div class="text-xs text-red-300 mt-2">• Inspect cooling system for leaks<br>• Replace thermostat<br>• Flush coolant system</div></div>
+            </div>
+          </div>
+          <div class="bg-orange-900 border-l-4 border-orange-500 p-3 rounded">
+            <div class="flex items-start"><div class="text-2xl mr-3">🟠</div>
+              <div><div class="font-bold text-orange-300">WARNING - Differential Rear</div><div class="text-sm text-orange-200 mt-1">Schedule within 18 days</div><div class="text-xs text-orange-300 mt-2">• Check oil contamination (PAP_IRON high)<br>• Inspect bearings<br>• Plan for overhaul</div></div>
+            </div>
+          </div>
+          <div class="bg-yellow-900 border-l-4 border-yellow-500 p-3 rounded">
+            <div class="flex items-start"><div class="text-2xl mr-3">🟡</div>
+              <div><div class="font-bold text-yellow-300">ATTENTION - Oil Pressure</div><div class="text-sm text-yellow-200 mt-1">Monitor closely - 25 days</div><div class="text-xs text-yellow-300 mt-2">• Check oil filter condition<br>• Verify oil pump operation<br>• Monitor pressure trends</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB CONTENT: KPI -->
+  <div id="content-kpi" style="display: none;">
+    <div class="p-6 space-y-6">
+      <!-- KPI Overview Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- MTBF Card -->
+        <div class="bg-gradient-to-br from-blue-900 to-blue-700 p-5 rounded-lg sensor-card border-l-4 border-blue-400">
+          <div class="flex justify-between items-start mb-3">
+            <div>
+              <div class="text-xs text-blue-200 uppercase tracking-wide">MTBF</div>
+              <div class="text-sm text-blue-300 mt-1">Mean Time Between Failures</div>
+            </div>
+            <div class="bg-blue-600 rounded-full w-10 h-10 flex items-center justify-center text-xl">⏱️</div>
+          </div>
+          <div class="text-4xl font-bold mb-2">170.5<span class="text-2xl text-blue-300 ml-1">hrs</span></div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-300">↑ 13.7%</span>
+            <span class="text-blue-300 ml-2">vs Target: 150h</span>
+          </div>
+          <div class="mt-3 text-xs text-blue-200">Last 30 days: 7 failures</div>
+        </div>
+
+        <!-- MTTR Card -->
+        <div class="bg-gradient-to-br from-purple-900 to-purple-700 p-5 rounded-lg sensor-card border-l-4 border-purple-400">
+          <div class="flex justify-between items-start mb-3">
+            <div>
+              <div class="text-xs text-purple-200 uppercase tracking-wide">MTTR</div>
+              <div class="text-sm text-purple-300 mt-1">Mean Time To Repair</div>
+            </div>
+            <div class="bg-purple-600 rounded-full w-10 h-10 flex items-center justify-center text-xl">🔧</div>
+          </div>
+          <div class="text-4xl font-bold mb-2">4.2<span class="text-2xl text-purple-300 ml-1">hrs</span></div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-300">↓ 16.0%</span>
+            <span class="text-purple-300 ml-2">vs Target: 5h</span>
+          </div>
+          <div class="mt-3 text-xs text-purple-200">Avg repair time improving</div>
+        </div>
+
+        <!-- Availability Card -->
+        <div class="bg-gradient-to-br from-green-900 to-green-700 p-5 rounded-lg sensor-card border-l-4 border-green-400">
+          <div class="flex justify-between items-start mb-3">
+            <div>
+              <div class="text-xs text-green-200 uppercase tracking-wide">Availability</div>
+              <div class="text-sm text-green-300 mt-1">Physical Availability</div>
+            </div>
+            <div class="bg-green-600 rounded-full w-10 h-10 flex items-center justify-center text-xl">✅</div>
+          </div>
+          <div class="text-4xl font-bold mb-2">91.3<span class="text-2xl text-green-300 ml-1">%</span></div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-300">↑ 1.4%</span>
+            <span class="text-green-300 ml-2">vs Target: 90%</span>
+          </div>
+          <div class="mt-3 text-xs text-green-200">Uptime: 657.4h / 720h</div>
+        </div>
+
+        <!-- OEE Card -->
+        <div class="bg-gradient-to-br from-orange-900 to-orange-700 p-5 rounded-lg sensor-card border-l-4 border-orange-400">
+          <div class="flex justify-between items-start mb-3">
+            <div>
+              <div class="text-xs text-orange-200 uppercase tracking-wide">OEE</div>
+              <div class="text-sm text-orange-300 mt-1">Overall Equipment Effectiveness</div>
+            </div>
+            <div class="bg-orange-600 rounded-full w-10 h-10 flex items-center justify-center text-xl">📊</div>
+          </div>
+          <div class="text-4xl font-bold mb-2">76.4<span class="text-2xl text-orange-300 ml-1">%</span></div>
+          <div class="flex items-center text-sm">
+            <span class="text-yellow-300">↓ 3.6%</span>
+            <span class="text-orange-300 ml-2">vs Target: 85%</span>
+          </div>
+          <div class="mt-3 text-xs text-orange-200">Below world-class threshold</div>
+        </div>
+      </div>
+
+      <!-- Main Content Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column - 2/3 width -->
+        <div class="lg:col-span-2 space-y-6">
+          
+          <!-- OEE Components Breakdown -->
+          <div class="bg-gray-800 rounded-lg p-5">
+            <h3 class="text-lg font-bold mb-4 text-blue-400">OEE Components Analysis</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div class="bg-gray-700 p-4 rounded-lg">
+                <div class="text-sm text-gray-400 mb-2">Availability</div>
+                <div class="text-3xl font-bold text-green-400 mb-2">91.3%</div>
+                <div class="w-full bg-gray-600 rounded-full h-3 mb-2">
+                  <div class="bg-green-500 h-3 rounded-full transition-all duration-500" style="width: 91.3%"></div>
+                </div>
+                <div class="text-xs text-gray-400">Uptime / Planned Production Time</div>
+              </div>
+              <div class="bg-gray-700 p-4 rounded-lg">
+                <div class="text-sm text-gray-400 mb-2">Performance</div>
+                <div class="text-3xl font-bold text-blue-400 mb-2">87.2%</div>
+                <div class="w-full bg-gray-600 rounded-full h-3 mb-2">
+                  <div class="bg-blue-500 h-3 rounded-full transition-all duration-500" style="width: 87.2%"></div>
+                </div>
+                <div class="text-xs text-gray-400">Actual / Ideal Cycle Time</div>
+              </div>
+              <div class="bg-gray-700 p-4 rounded-lg">
+                <div class="text-sm text-gray-400 mb-2">Quality</div>
+                <div class="text-3xl font-bold text-purple-400 mb-2">96.0%</div>
+                <div class="w-full bg-gray-600 rounded-full h-3 mb-2">
+                  <div class="bg-purple-500 h-3 rounded-full transition-all duration-500" style="width: 96.0%"></div>
+                </div>
+                <div class="text-xs text-gray-400">Good Output / Total Output</div>
+              </div>
+            </div>
+            <div style="height: 300px;">
+              <canvas id="oeeComponentsChart"></canvas>
+            </div>
+          </div>
+
+          <!-- MTBF & MTTR Trend -->
+          <div class="bg-gray-800 rounded-lg p-5">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-bold text-blue-400">MTBF & MTTR Trend (Last 6 Months)</h3>
+              <div class="flex gap-3 text-xs">
+                <div class="flex items-center">
+                  <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                  <span class="text-gray-400">MTBF</span>
+                </div>
+                <div class="flex items-center">
+                  <div class="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
+                  <span class="text-gray-400">MTTR</span>
+                </div>
+              </div>
+            </div>
+            <div style="height: 300px;">
+              <canvas id="mtbfMttrTrendChart"></canvas>
+            </div>
+            <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <div class="bg-gray-700 p-3 rounded">
+                <div class="text-gray-400">Best MTBF</div>
+                <div class="text-green-400 font-bold text-lg">198.3 hrs</div>
+                <div class="text-gray-500">October 2024</div>
+              </div>
+              <div class="bg-gray-700 p-3 rounded">
+                <div class="text-gray-400">Worst MTBF</div>
+                <div class="text-red-400 font-bold text-lg">142.1 hrs</div>
+                <div class="text-gray-500">December 2024</div>
+              </div>
+              <div class="bg-gray-700 p-3 rounded">
+                <div class="text-gray-400">Best MTTR</div>
+                <div class="text-green-400 font-bold text-lg">3.8 hrs</div>
+                <div class="text-gray-500">January 2025</div>
+              </div>
+              <div class="bg-gray-700 p-3 rounded">
+                <div class="text-gray-400">Worst MTTR</div>
+                <div class="text-red-400 font-bold text-lg">5.9 hrs</div>
+                <div class="text-gray-500">September 2024</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Failure Analysis by Component -->
+          <div class="bg-gray-800 rounded-lg p-5">
+            <h3 class="text-lg font-bold mb-4 text-orange-400">Failure Distribution by Component (Last 30 Days)</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div style="height: 280px;">
+                <canvas id="failureByComponentChart"></canvas>
+              </div>
+              <div class="space-y-2">
+                <div class="bg-gray-700 p-3 rounded">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold">Engine</span>
+                    <span class="text-red-400 font-bold">28.6%</span>
+                  </div>
+                  <div class="w-full bg-gray-600 rounded-full h-2">
+                    <div class="bg-red-500 h-2 rounded-full" style="width: 28.6%"></div>
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">2 failures | 8.4 hrs downtime</div>
+                </div>
+                <div class="bg-gray-700 p-3 rounded">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold">Differential Rear</span>
+                    <span class="text-orange-400 font-bold">21.4%</span>
+                  </div>
+                  <div class="w-full bg-gray-600 rounded-full h-2">
+                    <div class="bg-orange-500 h-2 rounded-full" style="width: 21.4%"></div>
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">2 failures | 6.3 hrs downtime</div>
+                </div>
+                <div class="bg-gray-700 p-3 rounded">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold">Transmission</span>
+                    <span class="text-yellow-400 font-bold">17.9%</span>
+                  </div>
+                  <div class="w-full bg-gray-600 rounded-full h-2">
+                    <div class="bg-yellow-500 h-2 rounded-full" style="width: 17.9%"></div>
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">1 failure | 5.3 hrs downtime</div>
+                </div>
+                <div class="bg-gray-700 p-3 rounded">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold">Hydraulic System</span>
+                    <span class="text-blue-400 font-bold">14.3%</span>
+                  </div>
+                  <div class="w-full bg-gray-600 rounded-full h-2">
+                    <div class="bg-blue-500 h-2 rounded-full" style="width: 14.3%"></div>
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">1 failure | 4.2 hrs downtime</div>
+                </div>
+                <div class="bg-gray-700 p-3 rounded">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold">Others</span>
+                    <span class="text-gray-400 font-bold">17.8%</span>
+                  </div>
+                  <div class="w-full bg-gray-600 rounded-full h-2">
+                    <div class="bg-gray-500 h-2 rounded-full" style="width: 17.8%"></div>
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">1 failure | 5.2 hrs downtime</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Availability & Reliability Comparison -->
+          <div class="bg-gray-800 rounded-lg p-5">
+            <h3 class="text-lg font-bold mb-4 text-green-400">Availability & Reliability Metrics</h3>
+            <div style="height: 300px;">
+              <canvas id="availabilityReliabilityChart"></canvas>
+            </div>
+            <div class="mt-4 bg-gray-700 p-4 rounded">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <div class="text-gray-400 mb-1">Physical Availability (PA)</div>
+                  <div class="text-2xl font-bold text-green-400">91.3%</div>
+                  <div class="text-xs text-gray-500 mt-1">Operating Time / Calendar Time</div>
+                </div>
+                <div>
+                  <div class="text-gray-400 mb-1">Mechanical Availability (MA)</div>
+                  <div class="text-2xl font-bold text-blue-400">94.7%</div>
+                  <div class="text-xs text-gray-500 mt-1">Excluding standby time</div>
+                </div>
+                <div>
+                  <div class="text-gray-400 mb-1">Reliability (R)</div>
+                  <div class="text-2xl font-bold text-purple-400">88.9%</div>
+                  <div class="text-xs text-gray-500 mt-1">MTBF / (MTBF + MTTR)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column - 1/3 width -->
+        <div class="space-y-6">
+          
+          <!-- KPI Status Summary -->
+          <div class="bg-gray-800 rounded-lg p-4">
+            <h3 class="text-lg font-bold mb-4 text-blue-400">KPI Performance Status</h3>
+            <div class="space-y-3">
+              <div class="bg-green-900 border-l-4 border-green-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-sm font-semibold text-green-300">MTBF</span>
+                  <span class="bg-green-600 px-2 py-1 rounded text-xs text-white">ACHIEVED</span>
+                </div>
+                <div class="text-2xl font-bold text-white">170.5 hrs</div>
+                <div class="text-xs text-green-300 mt-1">Target: 150 hrs (113.7%)</div>
+              </div>
+
+              <div class="bg-green-900 border-l-4 border-green-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-sm font-semibold text-green-300">MTTR</span>
+                  <span class="bg-green-600 px-2 py-1 rounded text-xs text-white">ACHIEVED</span>
+                </div>
+                <div class="text-2xl font-bold text-white">4.2 hrs</div>
+                <div class="text-xs text-green-300 mt-1">Target: ≤5 hrs (84.0%)</div>
+              </div>
+
+              <div class="bg-green-900 border-l-4 border-green-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-sm font-semibold text-green-300">Availability</span>
+                  <span class="bg-green-600 px-2 py-1 rounded text-xs text-white">ACHIEVED</span>
+                </div>
+                <div class="text-2xl font-bold text-white">91.3%</div>
+                <div class="text-xs text-green-300 mt-1">Target: 90% (101.4%)</div>
+              </div>
+
+              <div class="bg-yellow-900 border-l-4 border-yellow-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-sm font-semibold text-yellow-300">OEE</span>
+                  <span class="bg-yellow-600 px-2 py-1 rounded text-xs text-white">WARNING</span>
+                </div>
+                <div class="text-2xl font-bold text-white">76.4%</div>
+                <div class="text-xs text-yellow-300 mt-1">Target: 85% (89.9%)</div>
+              </div>
+
+              <div class="bg-green-900 border-l-4 border-green-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-sm font-semibold text-green-300">Reliability</span>
+                  <span class="bg-green-600 px-2 py-1 rounded text-xs text-white">ACHIEVED</span>
+                </div>
+                <div class="text-2xl font-bold text-white">88.9%</div>
+                <div class="text-xs text-green-300 mt-1">Target: 85% (104.6%)</div>
+              </div>
+
+              <div class="bg-green-900 border-l-4 border-green-500 p-3 rounded">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-sm font-semibold text-green-300">Quality Rate</span>
+                  <span class="bg-green-600 px-2 py-1 rounded text-xs text-white">ACHIEVED</span>
+                </div>
+                <div class="text-2xl font-bold text-white">96.0%</div>
+                <div class="text-xs text-green-300 mt-1">Target: 95% (101.1%)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Downtime Breakdown -->
+          <div class="bg-gray-800 rounded-lg p-4">
+            <h3 class="text-lg font-bold mb-4 text-red-400">Downtime Analysis (Last 30 Days)</h3>
+            <div style="height: 250px;">
+              <canvas id="downtimeBreakdownChart"></canvas>
+            </div>
+            <div class="mt-4 space-y-2 text-xs">
+              <div class="flex justify-between items-center bg-gray-700 p-2 rounded">
+                <div class="flex items-center">
+                  <div class="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                  <span>Unplanned Failures</span>
+                </div>
+                <span class="font-bold">29.4 hrs</span>
+              </div>
+              <div class="flex justify-between items-center bg-gray-700 p-2 rounded">
+                <div class="flex items-center">
+                  <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                  <span>Planned Maintenance</span>
+                </div>
+                <span class="font-bold">18.2 hrs</span>
+              </div>
+              <div class="flex justify-between items-center bg-gray-700 p-2 rounded">
+                <div class="flex items-center">
+                  <div class="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+                  <span>Standby / No Demand</span>
+                </div>
+                <span class="font-bold">12.8 hrs</span>
+              </div>
+              <div class="flex justify-between items-center bg-gray-700 p-2 rounded">
+                <div class="flex items-center">
+                  <div class="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
+                  <span>Other Delays</span>
+                </div>
+                <span class="font-bold">2.2 hrs</span>
+              </div>
+            </div>
+            <div class="mt-4 bg-red-900 border border-red-600 p-3 rounded">
+              <div class="text-xs font-bold text-red-300 mb-1">Critical Insight</div>
+              <div class="text-xs text-red-200">Unplanned failures increased by 18% vs last month. Focus on predictive maintenance.</div>
+            </div>
+          </div>
+
+          <!-- Monthly KPI Scorecard -->
+          <div class="bg-gray-800 rounded-lg overflow-hidden">
+            <div class="bg-gray-700 px-4 py-3 font-bold">Monthly KPI Scorecard</div>
+            <div class="p-4">
+              <table class="w-full text-xs">
+                <thead class="bg-gray-700">
+                  <tr>
+                    <th class="px-2 py-2 text-left">Metric</th>
+                    <th class="px-2 py-2 text-center">Actual</th>
+                    <th class="px-2 py-2 text-center">Target</th>
+                    <th class="px-2 py-2 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="border-t border-gray-700">
+                    <td class="px-2 py-2">MTBF</td>
+                    <td class="px-2 py-2 text-center font-bold">170.5h</td>
+                    <td class="px-2 py-2 text-center">150h</td>
+                    <td class="px-2 py-2 text-center"><span class="bg-green-600 px-2 py-1 rounded">✓</span></td>
+                  </tr>
+                  <tr class="border-t border-gray-700">
+                    <td class="px-2 py-2">MTTR</td>
+                    <td class="px-2 py-2 text-center font-bold">4.2h</td>
+                    <td class="px-2 py-2 text-center">≤5h</td>
+                    <td class="px-2 py-2 text-center"><span class="bg-green-600 px-2 py-1 rounded">✓</span></td>
+                  </tr>
+                  <tr class="border-t border-gray-700">
+                    <td class="px-2 py-2">PA</td>
+                    <td class="px-2 py-2 text-center font-bold">91.3%</td>
+                    <td class="px-2 py-2 text-center">90%</td>
+                    <td class="px-2 py-2 text-center"><span class="bg-green-600 px-2 py-1 rounded">✓</span></td>
+                  </tr>
+                  <tr class="border-t border-gray-700">
+                    <td class="px-2 py-2">MA</td>
+                    <td class="px-2 py-2 text-center font-bold">94.7%</td>
+                    <td class="px-2 py-2 text-center">93%</td>
+                    <td class="px-2 py-2 text-center"><span class="bg-green-600 px-2 py-1 rounded">✓</span></td>
+                  </tr>
+                  <tr class="border-t border-gray-700">
+                    <td class="px-2 py-2">Reliability</td>
+                    <td class="px-2 py-2 text-center font-bold">88.9%</td>
+                    <td class="px-2 py-2 text-center">85%</td>
+                    <td class="px-2 py-2 text-center"><span class="bg-green-600 px-2 py-1 rounded">✓</span></td>
+                  </tr>
+                  <tr class="border-t border-gray-700">
+                    <td class="px-2 py-2">OEE</td>
+                    <td class="px-2 py-2 text-center font-bold">76.4%</td>
+                    <td class="px-2 py-2 text-center">85%</td>
+                    <td class="px-2 py-2 text-center"><span class="bg-yellow-600 px-2 py-1 rounded">!</span></td>
+                  </tr>
+                  <tr class="border-t border-gray-700">
+                    <td class="px-2 py-2">Quality</td>
+                    <td class="px-2 py-2 text-center font-bold">96.0%</td>
+                    <td class="px-2 py-2 text-center">95%</td>
+                    <td class="px-2 py-2 text-center"><span class="bg-green-600 px-2 py-1 rounded">✓</span></td>
+                  </tr>
+                  <tr class="border-t border-gray-700">
+                    <td class="px-2 py-2">Performance</td>
+                    <td class="px-2 py-2 text-center font-bold">87.2%</td>
+                    <td class="px-2 py-2 text-center">90%</td>
+                    <td class="px-2 py-2 text-center"><span class="bg-yellow-600 px-2 py-1 rounded">!</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SCRIPT -->
+  <script>
+    // Tab switching
+    function showTab(tab) {
+      document.getElementById('content-rul').style.display = tab === 'rul' ? 'block' : 'none';
+      document.getElementById('content-cbm').style.display = tab === 'cbm' ? 'block' : 'none';
+      document.getElementById('content-pdm').style.display = tab === 'pdm' ? 'block' : 'none';
+      document.getElementById('content-kpi').style.display = tab === 'kpi' ? 'block' : 'none';
+
+      document.getElementById('tab-rul').className = tab === 'rul' ? 'tab-active px-4 py-3 font-medium text-sm whitespace-nowrap' : 'px-4 py-3 font-medium text-gray-300 hover:bg-gray-600 text-sm whitespace-nowrap';
+      document.getElementById('tab-cbm').className = tab === 'cbm' ? 'tab-active px-4 py-3 font-medium text-sm whitespace-nowrap' : 'px-4 py-3 font-medium text-gray-300 hover:bg-gray-600 text-sm whitespace-nowrap';
+      document.getElementById('tab-pdm').className = tab === 'pdm' ? 'tab-active px-4 py-3 font-medium text-sm whitespace-nowrap' : 'px-4 py-3 font-medium text-gray-300 hover:bg-gray-600 text-sm whitespace-nowrap';
+      document.getElementById('tab-kpi').className = tab === 'kpi' ? 'tab-active px-4 py-3 font-medium text-sm whitespace-nowrap' : 'px-4 py-3 font-medium text-gray-300 hover:bg-gray-600 text-sm whitespace-nowrap';
+
+      if (tab === 'rul') setTimeout(initRULCharts, 100);
+      else if (tab === 'cbm') setTimeout(initCBMCharts, 100);
+      else if (tab === 'pdm') setTimeout(initPdMCharts, 100);
+      else if (tab === 'kpi') setTimeout(initKPICharts, 100);
+    }
+
+    // Initialize RUL Charts
+    function initRULCharts() {
+      // Health Score Trend
+      new Chart(document.getElementById('healthTrendChart'), {
+        type: 'line',
+        data: {
+          labels: ['Jan 1', 'Jan 8', 'Jan 15', 'Jan 22', 'Jan 29', 'Feb 5', 'Feb 12'],
+          datasets: [{
+            label: 'Engine Health',
+            data: [85, 78, 72, 65, 55, 42, 30],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              labels: { color: '#999' }
+            }
+          },
+          scales: {
+            y: {
+              min: 0,
+              max: 100,
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af' }
+            },
+            x: {
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af' }
+            }
+          }
+        }
+      });
+
+      // Fault by Qty & Downtime
+      ['faultQtyChart', 'faultDowntimeChart'].forEach((id, idx) => {
+        new Chart(document.getElementById(id), {
+          type: 'bar',
+          data: {
+            labels: ['Engine', 'Transmission', 'Hydraulics', 'Electrical', 'Brakes', 'Tires', 'Cooling', 'Exhaust', 'Fuel', 'Suspension'],
+            datasets: [{
+              data: idx === 0 ? [12, 8, 6, 5, 4, 3, 3, 2, 2, 1] : [48, 36, 24, 18, 12, 8, 6, 4, 3, 2],
+              backgroundColor: idx === 0 ? '#3b82f6' : '#ef4444'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                grid: { color: '#374151' },
+                ticks: { color: '#9ca3af' }
+              },
+              x: {
+                grid: { color: '#374151' },
+                ticks: {
+                  color: '#9ca3af',
+                  maxRotation: 45,
+                  minRotation: 45,
+                  font: { size: 9 }
+                }
+              }
+            }
+          }
+        });
+      });
+    }
+
+    // Initialize CBM Charts
+    function initCBMCharts() {
+      // Generate realistic sensor data for 1 month (720 hours)
+      function generateSensorData() {
+        const hours = 720;
+        const data = {
+          timestamps: [], engineSpeed: [], coolantTemp: [], oilPressure: [],
+          leftExhaustTemp: [], rightExhaustTemp: [], transmissionTemp: [],
+          hydraulicTemp: [], batteryVoltage: [], airFilterRestriction: [], boostPressure: []
+        };
+
+        const baseDate = new Date('2018-01-13T00:00:00');
+        for (let i = 0; i < hours; i++) {
+          const timestamp = new Date(baseDate.getTime() + i * 60 * 60 * 1000);
+          data.timestamps.push(timestamp);
+
+          // Engine Speed
+          let engineSpeed = 1600 + Math.sin(i / 24) * 150 + (Math.random() - 0.5) * 100;
+          if (i > 650 && i < 680) engineSpeed += 300;
+          if (i > 710) engineSpeed += 400;
+          data.engineSpeed.push(Math.max(800, engineSpeed));
+
+          // Coolant Temp
+          let coolantTemp = 90 + Math.sin(i / 12) * 8 + (Math.random() - 0.5) * 4;
+          if (i > 600) coolantTemp += (i - 600) * 0.15;
+          if (i > 710) coolantTemp += 5;
+          data.coolantTemp.push(Math.min(110, Math.max(80, coolantTemp)));
+
+          // Oil Pressure
+          let oilPressure = 70 + Math.sin(i / 36) * 15 + (Math.random() - 0.5) * 10;
+          if (i > 500) oilPressure -= (i - 500) * 0.08;
+          if (i > 680) oilPressure -= (i - 680) * 0.3;
+          data.oilPressure.push(Math.max(15, oilPressure));
+
+          // Left Exhaust
+          let leftExhaust = 690 + Math.sin(i / 18) * 30 + (Math.random() - 0.5) * 20;
+          if (i > 640 && i < 680) leftExhaust += 40;
+          if (i > 700) leftExhaust += 50;
+          data.leftExhaustTemp.push(Math.min(800, Math.max(600, leftExhaust)));
+
+          // Right Exhaust
+          let rightExhaust = 685 + Math.sin(i / 20) * 28 + (Math.random() - 0.5) * 18;
+          if (i > 650) rightExhaust += (i - 650) * 0.3;
+          data.rightExhaustTemp.push(Math.min(780, Math.max(600, rightExhaust)));
+
+          // Transmission Temp
+          let transTemp = 95 + Math.sin(i / 24) * 10 + (Math.random() - 0.5) * 5;
+          data.transmissionTemp.push(Math.max(75, Math.min(115, transTemp)));
+
+          // Hydraulic Temp
+          let hydTemp = 75 + Math.sin(i / 30) * 8 + (Math.random() - 0.5) * 6;
+          data.hydraulicTemp.push(Math.max(55, Math.min(95, hydTemp)));
+
+          // Battery Voltage
+          let voltage = 27 + Math.sin(i / 48) * 0.5 + (Math.random() - 0.5) * 0.3;
+          data.batteryVoltage.push(Math.max(24, Math.min(29, voltage)));
+
+          // Air Filter
+          let airFilter = 3 + (i / 200) + (Math.random() - 0.5) * 0.3;
+          if (i > 680) airFilter += 2;
+          data.airFilterRestriction.push(Math.min(7, airFilter));
+
+          // Boost Pressure
+          let boost = 2.0 + Math.sin(i / 36) * 0.3 + (Math.random() - 0.5) * 0.2;
+          if (i > 680) boost -= (i - 680) * 0.02;
+          data.boostPressure.push(Math.max(0.8, boost));
+        }
+        return data;
+      }
+
+      const sensorData = generateSensorData();
+
+      // Isolation Forest
+      const anomalyScores = sensorData.timestamps.map((_, i) => {
+        const speedScore = (sensorData.engineSpeed[i] - 1650) / 300;
+        const tempScore = (sensorData.coolantTemp[i] - 95) / 15;
+        const pressureScore = (70 - sensorData.oilPressure[i]) / 30;
+        const exhaustScore = (sensorData.leftExhaustTemp[i] - 710) / 80;
+        return -0.5 + (speedScore + tempScore + pressureScore + exhaustScore) / 4 * 0.6 + (Math.random() - 0.5) * 0.1;
+      });
+
+      new Chart(document.getElementById('isolationForestChart'), {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: 'Anomaly Score',
+            data: sensorData.timestamps.map((t, i) => ({ x: i, y: anomalyScores[i] })),
+            backgroundColor: anomalyScores.map(s => s > -0.15 ? 'rgba(239,68,68,0.8)' : 'rgba(34,197,94,0.6)')
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            annotation: {
+              annotations: {
+                threshold: { type: 'line', yMin: -0.15, yMax: -0.15, borderColor: 'rgba(239,68,68,0.8)', borderWidth: 2, borderDash: [5,5], label: { content: 'Threshold', enabled: true, position: 'end' } }
+              }
+            }
+          },
+          scales: { y: { title: { display: true, text: 'Anomaly Score', color: '#999' }, grid: { color: '#444' }, ticks: { color: '#999' } }, x: { title: { display: true, text: 'Time (hours)', color: '#999' }, grid: { color: '#444' }, ticks: { color: '#999', maxTicksLimit: 12 } } }
+        }
+      });
+
+      // Temperature Threshold
+      new Chart(document.getElementById('tempThresholdChart'), {
+        type: 'line',
+        data: {
+          labels: sensorData.timestamps.slice(-168).map((_, i) => `${i}h`),
+          datasets: [
+            { label: 'Actual', data: sensorData.coolantTemp.slice(-168), borderColor: 'rgba(251,146,60,1)', backgroundColor: 'rgba(251,146,60,0.1)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+            { label: 'Critical', data: Array(168).fill(103), borderColor: 'rgba(239,68,68,1)', borderDash: [5,5], pointRadius: 0 },
+            { label: 'Warning', data: Array(168).fill(100), borderColor: 'rgba(234,179,8,1)', borderDash: [3,3], pointRadius: 0 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 80, max: 115, grid: { color: '#444' }, ticks: { color: '#999' } }, x: { grid: { color: '#444' }, ticks: { color: '#999', maxTicksLimit: 12, font: { size: 9 } } } } }
+      });
+
+      // Residual Analysis
+      const windowSize = 24;
+      const predicted = sensorData.oilPressure.map((_, i) => i < windowSize ? sensorData.oilPressure[i] : sensorData.oilPressure.slice(i - windowSize, i).reduce((a,b) => a+b, 0) / windowSize);
+      const residuals = sensorData.oilPressure.map((v, i) => v - predicted[i]);
+
+      new Chart(document.getElementById('residualChart'), {
+        type: 'line',
+        data: {
+          labels: sensorData.timestamps.slice(-168).map((_, i) => `${i}h`),
+          datasets: [
+            { label: 'Actual', data: sensorData.oilPressure.slice(-168), borderColor: 'rgba(168,85,247,1)', tension: 0.3, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+            { label: 'Predicted', data: predicted.slice(-168), borderColor: 'rgba(59,130,246,1)', borderDash: [5,5], tension: 0.3, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+            { label: 'Residual', type: 'bar', data: residuals.slice(-168), backgroundColor: residuals.slice(-168).map(r => Math.abs(r) > 15 ? 'rgba(239,68,68,0.6)' : 'rgba(34,197,94,0.4)'), yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { position: 'left', title: { display: true, text: 'Oil Pressure (psi)', color: '#999' }, grid: { color: '#444' }, ticks: { color: '#999' } },
+            y1: { position: 'right', title: { display: true, text: 'Residual (psi)', color: '#999' }, grid: { display: false }, ticks: { color: '#999' } },
+            x: { grid: { color: '#444' }, ticks: { color: '#999', maxTicksLimit: 12, font: { size: 9 } } }
+          }
+        }
+      });
+
+      // KNN Scatter
+      const scatterData = sensorData.timestamps.map((_, i) => {
+        const temp = sensorData.coolantTemp[i], pressure = sensorData.oilPressure[i];
+        let classification = 'normal';
+        if (pressure < 30 || temp > 105) classification = 'failure';
+        else if (pressure < 45 || temp > 103) classification = 'critical';
+        else if (pressure < 55 || temp > 100) classification = 'warning';
+        return { x: temp, y: pressure, classification };
+      });
+
+      const groups = { normal: [], warning: [], critical: [], failure: [] };
+      scatterData.forEach(d => groups[d.classification].push(d));
+
+      new Chart(document.getElementById('knnChart'), {
+        type: 'scatter',
+        data: {
+          datasets: [
+            { label: 'Normal', data: groups.normal, backgroundColor: 'rgba(34,197,94,0.6)', pointRadius: 3 },
+            { label: 'Warning', data: groups.warning, backgroundColor: 'rgba(234,179,8,0.6)', pointRadius: 4 },
+            { label: 'Critical', data: groups.critical, backgroundColor: 'rgba(239,68,68,0.6)', pointRadius: 5 },
+            { label: 'Failure', data: groups.failure, backgroundColor: 'rgba(168,85,247,0.8)', pointRadius: 6, pointStyle: 'triangle' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { title: { display: true, text: 'Oil Pressure (psi)', color: '#999' }, min: 10, max: 110, grid: { color: '#444' }, ticks: { color: '#999' } },
+            x: { title: { display: true, text: 'Coolant Temp (°C)', color: '#999' }, min: 80, max: 115, grid: { color: '#444' }, ticks: { color: '#999' } }
+          }
+        }
+      });
+    }
+
+    // Initialize PdM Charts
+    let chartsInitialized = false;
+    
+    // ==================== DATA GENERATION ====================
+    // Generate realistic IoT sensor data for 30 days (hourly)
+    function generatePdMSensorData() {
+      const data = [];
+      const startDate = new Date('2018-01-14T00:00:00');
+      const hoursInMonth = 30 * 24; // 720 hours
+      
+      // Base parameters (normal operating conditions)
+      let coolantTemp = 85;
+      let oilPressure = 450;
+      let exhaustTemp = 650;
+      let boostPressure = 180;
+      let engineSpeed = 1800;
+      
+      // Degradation factors
+      let coolantDegradation = 0;
+      let oilDegradation = 0;
+      
+      for (let i = 0; i < hoursInMonth; i++) {
+        const currentDate = new Date(startDate.getTime() + i * 3600000);
+        
+        // Simulate daily cycles (temperature rises during day)
+        const hourOfDay = currentDate.getHours();
+        const dailyCycle = Math.sin((hourOfDay / 24) * Math.PI * 2) * 5;
+        
+        // Progressive degradation (realistic physical wear)
+        coolantDegradation += 0.015; // Coolant system degrading
+        oilDegradation += 0.008;     // Oil pressure degrading
+        
+        // Add random variations (sensor noise)
+        const noise = () => (Math.random() - 0.5) * 2;
+        
+        // Coolant temp increases due to thermostat failure
+        coolantTemp = 85 + dailyCycle + coolantDegradation + noise();
+        
+        // Oil pressure decreases due to pump wear
+        oilPressure = Math.max(0, 450 - oilDegradation * 15 + noise() * 5);
+        
+        // Exhaust temp correlates with coolant issues
+        exhaustTemp = 650 + dailyCycle * 2 + (coolantDegradation * 0.5) + noise() * 10;
+        
+        // Boost pressure affected by engine load
+        boostPressure = 180 + dailyCycle * 0.5 + noise() * 3;
+        
+        // Engine speed variations
+        engineSpeed = 1800 + Math.sin(i / 10) * 100 + noise() * 50;
+        
+        // Introduce anomalies (mechanical failures)
+        let isAnomaly = false;
+        if (i > 500 && Math.random() < 0.02) { // 2% chance after day 20
+          coolantTemp += Math.random() * 15; // Sudden spike
+          isAnomaly = true;
+        }
+        if (i > 600 && Math.random() < 0.015) {
+          oilPressure -= Math.random() * 50; // Pressure drop
+          isAnomaly = true;
+        }
+        
+        // Failure conditions (based on CAT777D limits)
+        const coolantFailure = coolantTemp > 103;
+        const oilFailure = oilPressure < 100;
+        const exhaustFailure = exhaustTemp > 750;
+        
+        data.push({
+          timestamp: currentDate,
+          coolantTemp: Math.round(coolantTemp * 10) / 10,
+          oilPressure: Math.round(oilPressure * 10) / 10,
+          exhaustTemp: Math.round(exhaustTemp * 10) / 10,
+          boostPressure: Math.round(boostPressure * 10) / 10,
+          engineSpeed: Math.round(engineSpeed),
+          isAnomaly: isAnomaly,
+          coolantFailure: coolantFailure,
+          oilFailure: oilFailure,
+          exhaustFailure: exhaustFailure,
+          healthIndex: Math.max(0, 100 - (coolantDegradation * 0.8) - (oilDegradation * 1.2))
+        });
+      }
+      
+      return data;
+    }
+
+    const pdmSensorData = generatePdMSensorData();
+
+    // ==================== FORECASTING FUNCTIONS ====================
+    function forecastARIMA(historicalData, steps = 168) {
+      // Simplified ARIMA-like forecasting
+      const forecast = [];
+      const trend = (historicalData[historicalData.length - 1] - historicalData[0]) / historicalData.length;
+      const lastValue = historicalData[historicalData.length - 1];
+      
+      for (let i = 1; i <= steps; i++) {
+        const trendComponent = trend * i;
+        const seasonality = Math.sin((i / 24) * Math.PI * 2) * 3;
+        const noise = (Math.random() - 0.5) * 1.5;
+        forecast.push(lastValue + trendComponent + seasonality + noise);
+      }
+      
+      return forecast;
+    }
+
+    function initPdMCharts() {
+      if (chartsInitialized) return;
+      chartsInitialized = true;
+      
+      // 1. SENSOR FORECASTING CHART
+      const sensorCtx = document.getElementById('sensorForecastChart').getContext('2d');
+      const historicalCoolant = pdmSensorData.slice(0, 720).map(d => d.coolantTemp);
+      const forecastCoolant = forecastARIMA(historicalCoolant, 168);
+      const allCoolantData = [...historicalCoolant, ...forecastCoolant];
+      
+      const timeLabels = [];
+      for (let i = 0; i < 720 + 168; i++) {
+        const date = new Date('2018-01-14T00:00:00');
+        date.setHours(date.getHours() + i);
+        if (i % 24 === 0) {
+          timeLabels.push(date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
+        } else {
+          timeLabels.push('');
+        }
+      }
+      
+      new Chart(sensorCtx, {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [{
+            label: 'Historical Data',
+            data: historicalCoolant.concat(Array(168).fill(null)),
+            borderColor: '#3b82f6',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            pointRadius: 0
+          }, {
+            label: 'Forecast',
+            data: Array(720).fill(null).concat(forecastCoolant),
+            borderColor: '#fbbf24',
+            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: true
+          }, {
+            label: 'Alarm Threshold',
+            data: Array(888).fill(100),
+            borderColor: '#ef4444',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderDash: [10, 5],
+            pointRadius: 0
+          }, {
+            label: 'Critical Threshold',
+            data: Array(888).fill(103),
+            borderColor: '#991b1b',
+            backgroundColor: 'rgba(153, 27, 27, 0.2)',
+            borderWidth: 3,
+            pointRadius: 0,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: { color: '#999', boxWidth: 12, font: { size: 10 } }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              borderColor: '#3b82f6',
+              borderWidth: 1
+            }
+          },
+          scales: {
+            y: {
+              min: 70,
+              max: 120,
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af', font: { size: 10 } },
+              title: {
+                display: true,
+                text: 'Temperature (°C)',
+                color: '#9ca3af'
+              }
+            },
+            x: {
+              grid: { color: '#374151' },
+              ticks: {
+                color: '#9ca3af',
+                maxRotation: 45,
+                minRotation: 45,
+                font: { size: 9 }
+              }
+            }
+          }
+        }
+      });
+      
+      // 2. KNN CLASSIFICATION CHART
+      const knnCtx = document.getElementById('knnClassificationChart').getContext('2d');
+      const knnData = {
+        normal: [],
+        warning: [],
+        critical: []
+      };
+      
+      // Generate KNN classification points based on forecast data
+      for (let i = 720; i < 888; i++) {
+        const temp = allCoolantData[i];
+        const pressure = 450 - (i - 720) * 0.5 + (Math.random() - 0.5) * 20;
+        
+        if (temp < 95 && pressure > 300) {
+          knnData.normal.push({ x: temp, y: pressure });
+        } else if (temp < 100 && pressure > 200) {
+          knnData.warning.push({ x: temp, y: pressure });
+        } else {
+          knnData.critical.push({ x: temp, y: pressure });
+        }
+      }
+      
+      new Chart(knnCtx, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: 'Normal Operation',
+            data: knnData.normal,
+            backgroundColor: 'rgba(34, 197, 94, 0.6)',
+            borderColor: '#22c55e',
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }, {
+            label: 'Warning Zone',
+            data: knnData.warning,
+            backgroundColor: 'rgba(251, 191, 36, 0.6)',
+            borderColor: '#fbbf24',
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }, {
+            label: 'Critical Zone',
+            data: knnData.critical,
+            backgroundColor: 'rgba(239, 68, 68, 0.6)',
+            borderColor: '#ef4444',
+            pointRadius: 5,
+            pointHoverRadius: 7
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: { color: '#999', font: { size: 11 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  return `Temp: ${context.parsed.x.toFixed(1)}°C, Pressure: ${context.parsed.y.toFixed(0)} kPa`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af' },
+              title: {
+                display: true,
+                text: 'Oil Pressure (kPa)',
+                color: '#9ca3af'
+              }
+            },
+            x: {
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af' },
+              title: {
+                display: true,
+                text: 'Coolant Temperature (°C)',
+                color: '#9ca3af'
+              }
+            }
+          }
+        }
+      });
+      
+      // 3. ANOMALY DETECTION CHART
+      const anomalyCtx = document.getElementById('anomalyDetectionChart').getContext('2d');
+      const anomalyScores = [];
+      const anomalyPoints = [];
+      
+      for (let i = 720; i < 888; i++) {
+        const score = Math.random() * 0.3 + (allCoolantData[i] > 100 ? 0.4 : 0);
+        anomalyScores.push(score);
+        
+        if (score > 0.5) {
+          anomalyPoints.push({ x: i - 720, y: score });
+        }
+      }
+      
+      new Chart(anomalyCtx, {
+        type: 'line',
+        data: {
+          labels: Array.from({ length: 168 }, (_, i) => {
+            const date = new Date('2018-02-13T00:00:00');
+            date.setHours(i);
+            return i % 12 === 0 ? date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit' }) : '';
+          }),
+          datasets: [{
+            label: 'Anomaly Score',
+            data: anomalyScores,
+            borderColor: '#8b5cf6',
+            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 1
+          }, {
+            label: 'Threshold',
+            data: Array(168).fill(0.5),
+            borderColor: '#ef4444',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0
+          }, {
+            label: 'Detected Anomalies',
+            data: anomalyPoints.map(p => ({ x: p.x, y: p.y })),
+            type: 'scatter',
+            backgroundColor: '#ef4444',
+            borderColor: '#991b1b',
+            pointRadius: 6,
+            pointHoverRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              labels: { color: '#999', font: { size: 10 } }
+            }
+          },
+          scales: {
+            y: {
+              min: 0,
+              max: 1,
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af', font: { size: 10 } },
+              title: {
+                display: true,
+                text: 'Anomaly Score',
+                color: '#9ca3af'
+              }
+            },
+            x: {
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af', maxRotation: 45, font: { size: 9 } }
+            }
+          }
+        }
+      });
+
+      // Populate anomaly table
+      const anomalyTableBody = document.getElementById('anomalyTableBody');
+      const topAnomalies = anomalyPoints.sort((a, b) => b.y - a.y).slice(0, 5);
+
+      topAnomalies.forEach(anomaly => {
+        const date = new Date('2018-02-13T00:00:00');
+        date.setHours(anomaly.x);
+        const row = `
+          <tr class="border-t border-gray-700">
+            <td class="px-3 py-2">${date.toLocaleString('en-GB')}</td>
+            <td class="px-3 py-2">Engine</td>
+            <td class="px-3 py-2"><span class="text-red-400 font-bold">${anomaly.y.toFixed(3)}</span></td>
+            <td class="px-3 py-2">+${(anomaly.y * 20).toFixed(1)}°C</td>
+            <td class="px-3 py-2"><span class="bg-red-600 px-2 py-1 rounded text-xs">High</span></td>
+          </tr>
+        `;
+        anomalyTableBody.innerHTML += row;
+      });
+
+      // 4. OEE DEGRADATION CHART
+      const oeeCtx = document.getElementById('oeeDegradationChart').getContext('2d');
+      const oeeDays = Array.from({ length: 30 }, (_, i) => `Day ${i + 1}`);
+      const availability = Array.from({ length: 30 }, (_, i) => 90 - i * 0.8);
+      const performance = Array.from({ length: 30 }, (_, i) => 88 - i * 0.35);
+      const quality = Array.from({ length: 30 }, (_, i) => 94 - i * 0.07);
+      const oee = availability.map((a, i) => (a * performance[i] * quality[i]) / 10000);
+
+      new Chart(oeeCtx, {
+        type: 'line',
+        data: {
+          labels: oeeDays,
+          datasets: [{
+            label: 'OEE',
+            data: oee,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4
+          }, {
+            label: 'Target (85%)',
+            data: Array(30).fill(85),
+            borderColor: '#22c55e',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0
+          }, {
+            label: 'Critical (70%)',
+            data: Array(30).fill(70),
+            borderColor: '#ef4444',
+            borderWidth: 2,
+            borderDash: [10, 5],
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              labels: { color: '#999', font: { size: 10 } }
+            }
+          },
+          scales: {
+            y: {
+              min: 60,
+              max: 100,
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af', font: { size: 10 } },
+              title: {
+                display: true,
+                text: 'OEE (%)',
+                color: '#9ca3af'
+              }
+            },
+            x: {
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af', maxRotation: 45, font: { size: 8 } }
+            }
+          }
+        }
+      });
+
+      // 5. RUN-TO-FAILURE RUL CHART
+      const rulCtx = document.getElementById('runToFailureChart').getContext('2d');
+      const rulDays = Array.from({ length: 50 }, (_, i) => i);
+
+      // Different failure modes degradation curves
+      const engineOverheat = rulDays.map(d => 100 - Math.pow(d / 12, 2) * 100);
+      const diffRearWear = rulDays.map(d => 100 - Math.pow(d / 18, 1.8) * 100);
+      const oilPressureDrop = rulDays.map(d => 100 - Math.pow(d / 25, 1.5) * 100);
+      const cylinderWear = rulDays.map(d => 100 - (d / 45) * 100);
+
+      // Current health index tracking
+      const currentHI = 32.5;
+
+      new Chart(rulCtx, {
+        type: 'line',
+        data: {
+          labels: rulDays,
+          datasets: [{
+            label: 'Engine Overheat Path',
+            data: engineOverheat,
+            borderColor: '#ef4444',
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            tension: 0.4,
+            pointRadius: 0
+          }, {
+            label: 'Diff Rear Wear Path',
+            data: diffRearWear,
+            borderColor: '#f97316',
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            tension: 0.4,
+            pointRadius: 0
+          }, {
+            label: 'Oil Pressure Drop Path',
+            data: oilPressureDrop,
+            borderColor: '#fbbf24',
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            tension: 0.4,
+            pointRadius: 0
+          }, {
+            label: 'Cylinder Wear Path',
+            data: cylinderWear,
+            borderColor: '#22c55e',
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            tension: 0.4,
+            pointRadius: 0
+          }, {
+            label: 'Current Health Index',
+            data: [{ x: 0, y: currentHI }],
+            type: 'scatter',
+            backgroundColor: '#8b5cf6',
+            borderColor: '#6d28d9',
+            pointRadius: 10,
+            pointHoverRadius: 12,
+            showLine: false
+          }, {
+            label: 'Failure Threshold',
+            data: Array(50).fill(20),
+            borderColor: '#991b1b',
+            backgroundColor: 'rgba(153, 27, 27, 0.1)',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'bottom',
+              labels: { color: '#999', font: { size: 9 }, boxWidth: 10 }
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              min: 0,
+              max: 100,
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af', font: { size: 10 } },
+              title: {
+                display: true,
+                text: 'Health Index (%)',
+                color: '#9ca3af'
+              }
+            },
+            x: {
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af', font: { size: 9 } },
+              title: {
+                display: true,
+                text: 'Days from Now',
+                color: '#9ca3af'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Initialize KPI Charts
+    function initKPICharts() {
+      // 1. OEE Components Trend Chart
+      const oeeCtx = document.getElementById('oeeComponentsChart').getContext('2d');
+      new Chart(oeeCtx, {
+        type: 'line',
+        data: {
+          labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+          datasets: [{
+            label: 'Availability',
+            data: [92.1, 91.8, 90.5, 91.3],
+            borderColor: '#22c55e',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4
+          }, {
+            label: 'Performance',
+            data: [89.3, 88.1, 86.4, 87.2],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4
+          }, {
+            label: 'Quality',
+            data: [96.8, 96.2, 95.5, 96.0],
+            borderColor: '#a855f7',
+            backgroundColor: 'rgba(168, 85, 247, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4
+          }, {
+            label: 'OEE',
+            data: [81.2, 79.8, 75.3, 76.4],
+            borderColor: '#f97316',
+            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            borderDash: [5, 5]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: { color: '#9ca3af', font: { size: 11 } }
+            }
+          },
+          scales: {
+            y: {
+              min: 70,
+              max: 100,
+              grid: { color: '#374151' },
+              ticks: { 
+                color: '#9ca3af',
+                callback: function(value) {
+                  return value + '%';
+                }
+              },
+              title: {
+                display: true,
+                text: 'Percentage (%)',
+                color: '#9ca3af'
+              }
+            },
+            x: {
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af' }
+            }
+          }
+        }
+      });
+
+      // 2. MTBF & MTTR Trend Chart
+      const mtbfMttrCtx = document.getElementById('mtbfMttrTrendChart').getContext('2d');
+      new Chart(mtbfMttrCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Aug 24', 'Sep 24', 'Oct 24', 'Nov 24', 'Dec 24', 'Jan 25'],
+          datasets: [{
+            label: 'MTBF (hrs)',
+            data: [165.3, 152.8, 198.3, 178.4, 142.1, 170.5],
+            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+            borderColor: '#3b82f6',
+            borderWidth: 2,
+            yAxisID: 'y'
+          }, {
+            label: 'MTTR (hrs)',
+            data: [4.8, 5.9, 4.1, 4.5, 5.2, 4.2],
+            backgroundColor: 'rgba(168, 85, 247, 0.7)',
+            borderColor: '#a855f7',
+            borderWidth: 2,
+            yAxisID: 'y1',
+            type: 'line',
+            tension: 0.4
+          }, {
+            label: 'MTBF Target',
+            data: Array(6).fill(150),
+            borderColor: '#22c55e',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            type: 'line',
+            yAxisID: 'y'
+          }, {
+            label: 'MTTR Target',
+            data: Array(6).fill(5),
+            borderColor: '#ef4444',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            type: 'line',
+            yAxisID: 'y1'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: { color: '#9ca3af', font: { size: 10 }, boxWidth: 12 }
+            }
+          },
+          scales: {
+            y: {
+              type: 'linear',
+              position: 'left',
+              min: 0,
+              max: 220,
+              grid: { color: '#374151' },
+              ticks: { 
+                color: '#9ca3af',
+                callback: function(value) {
+                  return value + 'h';
+                }
+              },
+              title: {
+                display: true,
+                text: 'MTBF (hours)',
+                color: '#3b82f6'
+              }
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              min: 0,
+              max: 8,
+              grid: { display: false },
+              ticks: { 
+                color: '#9ca3af',
+                callback: function(value) {
+                  return value + 'h';
+                }
+              },
+              title: {
+                display: true,
+                text: 'MTTR (hours)',
+                color: '#a855f7'
+              }
+            },
+            x: {
+              grid: { color: '#374151' },
+              ticks: { color: '#9ca3af', font: { size: 10 } }
+            }
+          }
+        }
+      });
+
+      // 3. Failure by Component Chart
+      const failureCtx = document.getElementById('failureByComponentChart').getContext('2d');
+      new Chart(failureCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Engine', 'Diff Rear', 'Transmission', 'Hydraulics', 'Others'],
+          datasets: [{
+            data: [28.6, 21.4, 17.9, 14.3, 17.8],
+            backgroundColor: [
+              'rgba(239, 68, 68, 0.8)',
+              'rgba(249, 115, 22, 0.8)',
+              'rgba(251, 191, 36, 0.8)',
+              'rgba(59, 130, 246, 0.8)',
+              'rgba(107, 114, 128, 0.8)'
+            ],
+            borderColor: [
+              '#ef4444',
+              '#f97316',
+              '#fbbf24',
+              '#3b82f6',
+              '#6b7280'
+            ],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'bottom',
+              labels: { 
+                color: '#9ca3af',
+                font: { size: 10 },
+                padding: 10
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return context.label + ': ' + context.parsed + '%';
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // 4. Availability & Reliability Comparison Chart
+      const availReliCtx = document.getElementById('availabilityReliabilityChart').getContext('2d');
+      new Chart(availReliCtx, {
+        type: 'radar',
+        data: {
+          labels: ['Physical Availability', 'Mechanical Availability', 'Reliability', 'OEE', 'MTBF Achievement', 'MTTR Achievement'],
+          datasets: [{
+            label: 'Current Performance',
+            data: [91.3, 94.7, 88.9, 76.4, 113.7, 84.0],
+            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+            borderColor: '#3b82f6',
+            borderWidth: 3,
+            pointBackgroundColor: '#3b82f6',
+            pointBorderColor: '#fff',
+            pointRadius: 5,
+            pointHoverRadius: 7
+          }, {
+            label: 'Target',
+            data: [90, 93, 85, 85, 100, 100],
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            borderColor: '#22c55e',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointBackgroundColor: '#22c55e',
+            pointBorderColor: '#fff',
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 0,
+              max: 120,
+              ticks: {
+                stepSize: 20,
+                color: '#9ca3af',
+                backdropColor: 'transparent'
+              },
+              grid: { color: '#374151' },
+              pointLabels: {
+                color: '#9ca3af',
+                font: { size: 10 }
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: { color: '#9ca3af', font: { size: 11 } }
+            }
+          }
+        }
+      });
+
+      // 5. Downtime Breakdown Chart
+      const downtimeCtx = document.getElementById('downtimeBreakdownChart').getContext('2d');
+      new Chart(downtimeCtx, {
+        type: 'pie',
+        data: {
+          labels: ['Unplanned Failures', 'Planned Maintenance', 'Standby/No Demand', 'Other Delays'],
+          datasets: [{
+            data: [29.4, 18.2, 12.8, 2.2],
+            backgroundColor: [
+              'rgba(239, 68, 68, 0.8)',
+              'rgba(59, 130, 246, 0.8)',
+              'rgba(251, 191, 36, 0.8)',
+              'rgba(168, 85, 247, 0.8)'
+            ],
+            borderColor: [
+              '#ef4444',
+              '#3b82f6',
+              '#fbbf24',
+              '#a855f7'
+            ],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'bottom',
+              labels: { 
+                color: '#9ca3af',
+                font: { size: 9 },
+                padding: 8
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = ((context.parsed / total) * 100).toFixed(1);
+                  return context.label + ': ' + context.parsed + ' hrs (' + percentage + '%)';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Sensor selector functionality
+    document.getElementById('sensorSelect')?.addEventListener('change', function(e) {
+      const sensor = e.target.value;
+      const breachTimeEl = document.getElementById('breachTime');
+
+      const breachTimes = {
+        coolantTemp: 'Est. 12 Feb 18:00',
+        oilPressure: 'Est. 17 Feb 06:00',
+        exhaustTemp: 'Est. 14 Feb 22:00',
+        boostPressure: 'No breach predicted'
+      };
+
+      breachTimeEl.textContent = breachTimes[sensor];
+      breachTimeEl.className = breachTimes[sensor].includes('No breach') ? 'text-green-400 font-bold' : 'text-red-400 font-bold';
+    });
+
+    // Load default tab
+    window.addEventListener('load', () => {
+      showTab('rul');
+      initRULCharts();
+    });
+  </script>
+</body>
+</html>
